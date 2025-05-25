@@ -1,0 +1,14 @@
+[
+  {
+    "id": 1,
+    "nama": "Ikan Tuna",
+    "tanggal": "2025-05-24",
+    "hasil": "Segar"
+  },
+  {
+    "id": 2,
+    "nama": "Ikan Tongkol",
+    "tanggal": "2025-05-23",
+    "hasil": "Tidak Segar"
+  }
+]

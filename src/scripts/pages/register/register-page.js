@@ -1,7 +1,9 @@
+import { registerUser } from '../../data/api.js';
+
 export default class RegisterPage {
-    async render() {
-      return `
-           <section class="min-h-screen flex items-center justify-center bg-gray-50 px-4 mt-9">
+  async render() {
+    return `
+      <section class="min-h-screen flex items-center justify-center bg-gray-50 px-4 mt-9">
         <div class="max-w-md w-full bg-white rounded-xl shadow-md p-8">
           <h2 class="text-2xl font-bold text-blue-700 mb-6 text-center">Daftar Akun Baru</h2>
           <form id="register-form" class="space-y-5">
@@ -25,11 +27,36 @@ export default class RegisterPage {
           </p>
         </div>
       </section>
-      `;
-    }
-  
-    async afterRender() {
-      // Do your job here
-    }
+    `;
   }
-  
+
+  async afterRender() {
+    const form = document.querySelector('#register-form');
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+
+      const name = form.name.value.trim();
+      const email = form.email.value.trim();
+      const password = form.password.value.trim();
+
+      if (!name || !email || !password) {
+        alert('Semua field wajib diisi!');
+        return;
+      }
+
+      const userData = {
+        name,
+        email,
+        password,
+      };
+
+      const result = await registerUser(userData);
+      if (result && result.success) {
+        alert('Registrasi berhasil! Silakan login.');
+        window.location.hash = '/login';
+      } else {
+        alert('Registrasi gagal. Coba lagi.');
+      }
+    });
+  }
+}
