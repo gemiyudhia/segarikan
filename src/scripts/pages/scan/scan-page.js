@@ -9,7 +9,6 @@ export default class ScanPage {
           </div>
           
           <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
-            <!-- Tab Navigation -->
             <div class="flex border-b border-gray-200 mb-6">
               <button id="camera-tab" class="flex-1 py-3 font-medium text-blue-700 border-b-2 border-blue-700">
                 <i class="fas fa-camera mr-2"></i> Kamera
@@ -18,7 +17,7 @@ export default class ScanPage {
                 <i class="fas fa-upload mr-2"></i> Unggah Gambar
               </button>
             </div>
-            
+
             <!-- Camera View -->
             <div id="camera-view" class="mb-4">
               <div class="relative rounded-lg overflow-hidden bg-gray-100 aspect-video flex items-center justify-center">
@@ -30,12 +29,14 @@ export default class ScanPage {
                   </div>
                 </div>
               </div>
-              <button id="scan-button" class="w-full mt-4 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition flex items-center justify-center font-medium">
+              <button id="scan-button" class="w-full mt-4 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition flex items-center justify-center font-medium" disabled>
                 <i class="fas fa-search-plus mr-2"></i> Scan Ikan
               </button>
+              <!-- Status deteksi ikan -->
+              <p id="detection-status" class="text-center font-semibold text-lg mt-2"></p>
             </div>
-            
-            <!-- Upload View (Hidden by default) -->
+
+            <!-- Upload View -->
             <div id="upload-view" class="mb-4 hidden">
               <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center" id="drop-area">
                 <input type="file" id="file-input" accept="image/*" class="hidden">
@@ -57,15 +58,14 @@ export default class ScanPage {
               </button>
             </div>
           </div>
-          
-          <!-- Loading Overlay -->
+
           <div id="loading-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
             <div class="bg-white p-6 rounded-xl shadow-lg text-center">
               <div class="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-4 mx-auto"></div>
               <p class="text-gray-700 font-medium">Memproses gambar...</p>
             </div>
           </div>
-          
+
           <canvas id="snapshot" class="hidden"></canvas>
         </div>
       </section>
@@ -73,7 +73,6 @@ export default class ScanPage {
   }
 
   async afterRender() {
-    // Get DOM elements
     const video = document.getElementById("camera-stream")
     const canvas = document.getElementById("snapshot")
     const scanButton = document.getElementById("scan-button")
@@ -89,31 +88,43 @@ export default class ScanPage {
     const uploadScanButton = document.getElementById("upload-scan-button")
     const cameraPlaceholder = document.getElementById("camera-placeholder")
     const loadingOverlay = document.getElementById("loading-overlay")
+    const detectionStatus = document.getElementById("detection-status")
 
     let selectedFile = null
+    let detectionInterval = null
 
-    // Initialize camera
+    // Reset status deteksi awal
+    detectionStatus.textContent = ''
+    detectionStatus.className = 'text-center font-semibold text-lg mt-2'
+
     const initCamera = async () => {
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         try {
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: "environment" },
-          })
+          const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
           video.srcObject = stream
           cameraPlaceholder.classList.add("hidden")
+          scanButton.disabled = true
+          detectionStatus.textContent = '🔄 Mendeteksi ikan...'
+          detectionStatus.className = 'text-gray-700 font-semibold text-lg mt-2'
+          startFishDetection(stream)
         } catch (err) {
           console.error("Gagal mengakses kamera", err)
           cameraPlaceholder.classList.remove("hidden")
+          scanButton.disabled = true
+          stopFishDetection()
+          detectionStatus.textContent = '⚠️ Kamera tidak tersedia'
+          detectionStatus.className = 'text-red-600 font-semibold text-lg mt-2'
         }
       } else {
         cameraPlaceholder.classList.remove("hidden")
+        scanButton.disabled = true
+        detectionStatus.textContent = '⚠️ Kamera tidak didukung browser'
+        detectionStatus.className = 'text-red-600 font-semibold text-lg mt-2'
       }
     }
 
-    // Initialize camera on page load
     initCamera()
 
-    // Tab switching
     cameraTab.addEventListener("click", () => {
       cameraTab.classList.add("text-blue-700", "border-b-2", "border-blue-700")
       cameraTab.classList.remove("text-gray-500")
@@ -121,6 +132,10 @@ export default class ScanPage {
       uploadTab.classList.add("text-gray-500")
       cameraView.classList.remove("hidden")
       uploadView.classList.add("hidden")
+      scanButton.disabled = true
+      detectionStatus.textContent = ''
+      detectionStatus.className = 'text-center font-semibold text-lg mt-2'
+      initCamera()
     })
 
     uploadTab.addEventListener("click", () => {
@@ -130,9 +145,12 @@ export default class ScanPage {
       cameraTab.classList.add("text-gray-500")
       uploadView.classList.remove("hidden")
       cameraView.classList.add("hidden")
+      scanButton.disabled = true
+      stopFishDetection()
+      detectionStatus.textContent = ''
+      detectionStatus.className = 'text-center font-semibold text-lg mt-2'
     })
 
-    // File upload handling
     browseButton.addEventListener("click", () => {
       fileInput.click()
     })
@@ -141,7 +159,6 @@ export default class ScanPage {
       handleFileSelect(e.target.files[0])
     })
 
-    // Drag and drop functionality
     ;["dragenter", "dragover", "dragleave", "drop"].forEach((eventName) => {
       dropArea.addEventListener(eventName, preventDefaults, false)
     })
@@ -150,111 +167,165 @@ export default class ScanPage {
       e.preventDefault()
       e.stopPropagation()
     }
+
     ;["dragenter", "dragover"].forEach((eventName) => {
-      dropArea.addEventListener(eventName, highlight, false)
+      dropArea.addEventListener(eventName, () => {
+        dropArea.classList.add("border-blue-500", "bg-blue-50")
+      }, false)
     })
+
     ;["dragleave", "drop"].forEach((eventName) => {
-      dropArea.addEventListener(eventName, unhighlight, false)
+      dropArea.addEventListener(eventName, () => {
+        dropArea.classList.remove("border-blue-500", "bg-blue-50")
+      }, false)
     })
 
-    function highlight() {
-      dropArea.classList.add("border-blue-500", "bg-blue-50")
-    }
-
-    function unhighlight() {
-      dropArea.classList.remove("border-blue-500", "bg-blue-50")
-    }
-
-    dropArea.addEventListener("drop", handleDrop, false)
-
-    function handleDrop(e) {
-      const dt = e.dataTransfer
-      const file = dt.files[0]
-      handleFileSelect(file)
-    }
+    dropArea.addEventListener("drop", (e) => {
+      handleFileSelect(e.dataTransfer.files[0])
+    })
 
     function handleFileSelect(file) {
       if (!file || !file.type.match("image.*")) return
-
       selectedFile = file
       const reader = new FileReader()
-
       reader.onload = (e) => {
         imagePreview.src = e.target.result
         previewContainer.classList.remove("hidden")
-        uploadScanButton.disabled = false
       }
-
       reader.readAsDataURL(file)
+      uploadScanButton.disabled = false
+      detectionStatus.textContent = ''
+      detectionStatus.className = 'text-center font-semibold text-lg mt-2'
     }
 
-    // Camera scan button
-    scanButton.addEventListener("click", () => {
-      processImage(null)
-    })
-
-    // Upload scan button
-    uploadScanButton.addEventListener("click", () => {
-      if (selectedFile) {
-        processImage(imagePreview.src)
-      }
-    })
-
-    async function processImage(imageDataUrl) {
-      // Show loading overlay
+    uploadScanButton.addEventListener("click", async () => {
+      if (!selectedFile) return
       loadingOverlay.classList.remove("hidden")
 
       try {
-        // If no image data provided, capture from camera
-        if (!imageDataUrl) {
-          const context = canvas.getContext("2d")
-          canvas.width = video.videoWidth
-          canvas.height = video.videoHeight
-          context.drawImage(video, 0, 0, canvas.width, canvas.height)
-          imageDataUrl = canvas.toDataURL("image/jpeg")
-        }
-
-        // Send to API
-        const res = await fetch("http://localhost:5000/api/predict", {
+        const base64 = await fileToBase64(selectedFile)
+        const response = await fetch("/scan-image", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ image: imageDataUrl }),
+          body: JSON.stringify({ image: base64 }),
         })
+        const result = await response.json()
 
-        // Process response
-        const { prediction } = await res.json()
+        loadingOverlay.classList.add("hidden")
 
-        // Data dummy + hasil prediksi
-        const dummyResult = {
-          prediction: prediction || "Kurang Segar",
-          confidence: 0.78,
-          fishType: "Ikan Kembung",
-          timestamp: new Date().toLocaleString("id-ID", {
-            weekday: "long",
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-          recommendation: "Segera dimasak hari ini atau dibekukan untuk mencegah pembusukan.",
+        if (result.error) {
+          alert("Terjadi kesalahan: " + result.error)
+          return
         }
 
-        localStorage.setItem("scanResult", JSON.stringify(dummyResult))
-
-        // Hide loading overlay and redirect
-        loadingOverlay.classList.add("hidden")
-        window.location.hash = "#/result"
+        alert(`Hasil scan: ${result.message}`)
       } catch (err) {
-        // Hide loading overlay
         loadingOverlay.classList.add("hidden")
+        alert("Gagal memproses gambar: " + err.message)
+      }
+    })
 
-        // Show error alert
-        alert("Gagal melakukan prediksi. Silakan coba lagi.")
-        console.error(err)
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result)
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+    }
+
+    // Fungsi deteksi ikan dari video secara berkala
+    async function detectFishFromVideo() {
+      if (video.readyState !== 4) {
+        // Video belum siap
+        detectionStatus.textContent = '⚠️ Menunggu kamera...'
+        detectionStatus.className = 'text-gray-600 font-semibold text-lg mt-2'
+        return
+      }
+      canvas.width = video.videoWidth
+      canvas.height = video.videoHeight
+      const ctx = canvas.getContext("2d")
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+      const base64 = canvas.toDataURL("image/jpeg")
+
+      try {
+        const response = await fetch("/check-fish", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ image: base64 }),
+        })
+
+        const result = await response.json()
+
+        if (result.isFish) {
+          scanButton.disabled = false
+          detectionStatus.textContent = "✅ Ikan terdeteksi"
+          detectionStatus.className = "text-green-600 font-semibold text-lg mt-2"
+        } else {
+          scanButton.disabled = true
+          detectionStatus.textContent = "❌ Bukan ikan"
+          detectionStatus.className = "text-red-600 font-semibold text-lg mt-2"
+        }
+      } catch (err) {
+        console.error("Error deteksi ikan:", err)
+        scanButton.disabled = true
+        detectionStatus.textContent = "⚠️ Gagal deteksi"
+        detectionStatus.className = "text-yellow-600 font-semibold text-lg mt-2"
       }
     }
+
+    // Mulai interval deteksi ikan
+    function startFishDetection(stream) {
+      if (detectionInterval) clearInterval(detectionInterval)
+      detectionInterval = setInterval(detectFishFromVideo, 3000)
+    }
+
+    // Stop interval deteksi ikan
+    function stopFishDetection() {
+      if (detectionInterval) {
+        clearInterval(detectionInterval)
+        detectionInterval = null
+      }
+    }
+
+    // Event tombol scan kamera (ambil gambar & scan)
+    scanButton.addEventListener("click", async () => {
+      if (video.readyState !== 4) return
+      loadingOverlay.classList.remove("hidden")
+
+      canvas.width = video.videoWidth
+      canvas.height = video.videoHeight
+      const ctx = canvas.getContext("2d")
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+      const base64 = canvas.toDataURL("image/jpeg")
+
+      try {
+        const response = await fetch("/scan-image", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ image: base64 }),
+        })
+
+        const result = await response.json()
+
+        loadingOverlay.classList.add("hidden")
+
+        if (result.error) {
+          alert("Terjadi kesalahan: " + result.error)
+          return
+        }
+
+        alert(`Hasil scan: ${result.message}`)
+      } catch (err) {
+        loadingOverlay.classList.add("hidden")
+        alert("Gagal memproses gambar: " + err.message)
+      }
+    })
   }
 }
