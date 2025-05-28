@@ -28,16 +28,31 @@ class App {
         if (link.contains(event.target)) {
           this.#navigationDrawer.classList.remove('open');
         }
-      })
+      });
     });
   }
 
   async renderPage() {
     const url = getActiveRoute();
+    console.log('Active route:', url);
+
     const page = routes[url];
 
+    if (!page) {
+      console.error(`Route '${url}' tidak ditemukan`);
+      this.#content.innerHTML = `
+        <section style="padding:2rem; text-align:center;">
+          <h2>404 - Halaman Tidak Ditemukan</h2>
+          <p>Halaman '${url}' tidak tersedia.</p>
+        </section>
+      `;
+      return;
+    }
+
     this.#content.innerHTML = await page.render();
-    await page.afterRender();
+    if (page.afterRender) {
+      await page.afterRender();
+    }
   }
 }
 

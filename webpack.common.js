@@ -1,3 +1,5 @@
+
+
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
@@ -9,6 +11,11 @@ module.exports = {
   output: {
     filename: '[name].bundle.js',
     path: path.resolve(__dirname, 'dist'),
+  },
+  resolve: {
+    alias: {
+      '@data': path.resolve(__dirname, 'src/scripts/data'), // <-- ini solusi utama error-mu
+    },
   },
   module: {
     rules: [

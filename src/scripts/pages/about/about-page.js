@@ -22,7 +22,7 @@ export default class AboutPage {
               <li>Model AI menggunakan TensorFlow & Transfer Learning</li>
               <li>Pengolahan gambar menggunakan OpenCV</li>
               <li>Frontend dengan HTML, Tailwind CSS, JavaScript</li>
-              <li>Backend menggunakan Node.js + Express + MongoDB</li>
+              <li>Backend menggunakan Node.js + Express + IndexDB</li>
             </ul>
           </div>
         </div>
@@ -59,7 +59,7 @@ export default class AboutPage {
       {
         name: "Bagas Gilang Ramadhan",
         role: "Frontend & Backend",
-        img: "https://ui-avatars.com/api/?name=Bagas+Gilang+Ramadhan&background=0D8ABC&color=fff",
+        img: "bagas.jpg",
       },
     ]
       .map(

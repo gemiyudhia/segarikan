@@ -1,5 +1,9 @@
 // CSS imports
 import '../styles/styles.css';
+import { initDB, getUserByEmail } from '@data/indexdb.js';
+
+
+
 
 import App from './pages/app';
 
@@ -11,34 +15,29 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   const updateHeaderVisibility = () => {
-    const header = document.querySelector("header");
+    const header = document.querySelector('header');
     const currentHash = window.location.hash;
-    if (currentHash === "#/login" || currentHash === "#/register") {
-      header.style.display = "none";
+    if (currentHash === '#/login' || currentHash === '#/register') {
+      header.style.display = 'none';
     } else {
-      header.style.display = "block";
+      header.style.display = 'block';
     }
   };
 
+  // Render page pertama dan atur visibilitas header
   await app.renderPage();
   updateHeaderVisibility();
 
-  const drawerButton = document.querySelector("#drawer-button");
-  const navigationDrawer = document.querySelector("#navigation-drawer");
+  // Toggle menu navigasi
+  const drawerButton = document.querySelector('#drawer-button');
+  const navigationDrawer = document.querySelector('#navigation-drawer');
 
-  drawerButton.addEventListener("click", () => {
-    navigationDrawer.classList.toggle("hidden");
+  drawerButton.addEventListener('click', () => {
+    navigationDrawer.classList.toggle('hidden');
   });
 
-  window.addEventListener("hashchange", async () => {
-    await app.renderPage();
-  });
-
+  // Hash change listener: render ulang halaman dan perbarui header
   window.addEventListener('hashchange', async () => {
-    await app.renderPage();
-  });
-
-  window.addEventListener("hashchange", async () => {
     await app.renderPage();
     updateHeaderVisibility();
   });

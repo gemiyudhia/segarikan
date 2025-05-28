@@ -22,25 +22,15 @@ function constructRouteFromSegments(pathSegments) {
 }
 
 export function getActivePathname() {
-  return location.hash.replace('#', '') || '/';
+  let path = location.hash.replace('#', '') || '/';
+  if (!path.startsWith('/')) {
+    path = '/' + path;
+  }
+  return path;
 }
 
 export function getActiveRoute() {
   const pathname = getActivePathname();
   const urlSegments = extractPathnameSegments(pathname);
   return constructRouteFromSegments(urlSegments);
-}
-
-export function parseActivePathname() {
-  const pathname = getActivePathname();
-  return extractPathnameSegments(pathname);
-}
-
-export function getRoute(pathname) {
-  const urlSegments = extractPathnameSegments(pathname);
-  return constructRouteFromSegments(urlSegments);
-}
-
-export function parsePathname(pathname) {
-  return extractPathnameSegments(pathname);
 }
