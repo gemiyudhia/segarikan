@@ -11,7 +11,7 @@ const routes = {
   '/scan': new ScanPage(),
   '/login': new LoginPage(),
   '/register': new RegisterPage(),
-  '/result/:id': new ResultPage(),  // route dinamis dengan :id
+  '/result': new ResultPage(),  // route dinamis dengan :id
 };
 
 export default routes;
