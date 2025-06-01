@@ -98,7 +98,7 @@ export default class ScanPage {
     let selectedFile = null;
     let detectionInterval = null;
     let fishDetected = false;
-    let currentImageData = null;  
+    let currentImageData = null;
     let currentFacingMode = 'environment'; // default: kamera belakang
     let stream;
 
@@ -106,7 +106,6 @@ export default class ScanPage {
     detectionStatus.className = 'text-center font-semibold text-lg mt-2';
 
     const API_BASE = 'http://127.0.0.1:9000/api';
-
 
     async function startCamera() {
       if (stream) {
