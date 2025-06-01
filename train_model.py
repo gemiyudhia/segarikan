@@ -5,8 +5,8 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.optimizers import Adam
 
 # Lokasi dataset
-train_dir = "dataset/train"
-val_dir = "dataset/validation"
+train_dir = "dataset/fresh"
+val_dir = "dataset/non-fresh"
 
 # Data augmentation dan preprocessing
 train_datagen = ImageDataGenerator(

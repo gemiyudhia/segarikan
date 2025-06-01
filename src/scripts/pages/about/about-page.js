@@ -44,7 +44,7 @@ export default class AboutPage {
       {
         name: "Dwi Reza Ariyadi",
         role: "Machine Learning",
-        img: "https://ui-avatars.com/api/?name=Dwi+Reza+Ariyadi&background=0D8ABC&color=fff",
+        img: "reza.jpg",
       },
       {
         name: "Gemi Yudhia",

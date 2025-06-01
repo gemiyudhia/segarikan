@@ -1,26 +1,4 @@
-function extractPathnameSegments(path) {
-  const splitUrl = path.split('/');
-
-  return {
-    resource: splitUrl[1] || null,
-    id: splitUrl[2] || null,
-  };
-}
-
-function constructRouteFromSegments(pathSegments) {
-  let pathname = '';
-
-  if (pathSegments.resource) {
-    pathname = pathname.concat(`/${pathSegments.resource}`);
-  }
-
-  if (pathSegments.id) {
-    pathname = pathname.concat('/:id');
-  }
-
-  return pathname || '/';
-}
-
+// url-parser.js (perbaikan)
 export function getActivePathname() {
   let path = location.hash.replace('#', '') || '/';
   if (!path.startsWith('/')) {
@@ -29,8 +7,10 @@ export function getActivePathname() {
   return path;
 }
 
+/**
+ * Fungsi getActiveRoute sekarang cukup mengembalikan path asli, 
+ * misalnya '/result/123', tanpa mengubah ':id' menjadi literal
+ */
 export function getActiveRoute() {
-  const pathname = getActivePathname();
-  const urlSegments = extractPathnameSegments(pathname);
-  return constructRouteFromSegments(urlSegments);
+  return getActivePathname();
 }

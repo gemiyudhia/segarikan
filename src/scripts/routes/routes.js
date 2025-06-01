@@ -4,6 +4,7 @@ import ScanPage from '../pages/scan/scan-page';
 import LoginPage from '../pages/login/login-page';
 import RegisterPage from '../pages/register/register-page';
 import ResultPage from '../pages/result/result-page';
+import ProfilePage from '../pages/profile/profile-page';
 
 const routes = {
   '/': new HomePage(),
@@ -11,7 +12,10 @@ const routes = {
   '/scan': new ScanPage(),
   '/login': new LoginPage(),
   '/register': new RegisterPage(),
-  '/result/:id': new ResultPage(),  // route dinamis dengan :id
+  '/result': new ResultPage(),       // Tambahan ini supaya /result ada
+  '/result/:id': new ResultPage(),   // Route dinamis dengan :id
+  '/profile': new ProfilePage(),  
 };
+
 
 export default routes;

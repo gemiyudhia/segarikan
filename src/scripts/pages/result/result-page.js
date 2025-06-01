@@ -1,84 +1,176 @@
+// src/views/pages/ResultPage.js
+import { saveHistoryToDB } from '../../data/indexdb.js';
+
 export default class ResultPage {
   async render() {
     return `
-      <section class="min-h-screen flex items-center justify-center bg-blue-50 px-4 mt-10">
-        <div class="max-w-xl w-full bg-white p-8 rounded-xl shadow text-center">
-          <h2 class="text-2xl font-bold text-blue-700 mb-4">Hasil Deteksi Kesegaran Ikan</h2>
-          <div id="result-content" class="text-gray-800 text-left space-y-4">
-            Memuat hasil...
-          </div>
-          <div class="mt-6 text-center">
-            <a href="#/scan" class="text-blue-600 hover:underline">Scan Ulang</a>
+      <section class="px-4 py-10 min-h-screen bg-gradient-to-b from-white to-blue-50 mt-16">
+        <div class="max-w-3xl mx-auto">
+          <div class="bg-white rounded-2xl shadow-xl p-6 md:p-10 text-center">
+            <h1 class="text-2xl md:text-4xl font-bold text-blue-700 mb-6">Hasil Pemeriksaan Ikan</h1>
+
+            <div id="image-section" class="mb-6">
+              <img id="result-image" src="" alt="Hasil Scan" class="mx-auto rounded-lg shadow-md max-h-96" />
+            </div>
+
+            <div id="result-content" class="text-left">
+              <h2 class="text-xl font-semibold text-gray-700 mb-4">Detail Hasil:</h2>
+              <ul id="result-list" class="list-disc list-inside text-gray-800 space-y-4"></ul>
+            </div>
+
+            <div class="mt-10 space-y-4">
+              <button id="save-button" class="w-full md:w-auto bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg shadow-md transition duration-200 font-semibold" disabled>
+                <i class="fas fa-save mr-2"></i>Simpan Hasil Scan
+              </button>
+
+              <a href="#/scan" class="inline-block w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg shadow-md transition duration-200 font-semibold">
+                <i class="fas fa-redo-alt mr-2"></i>Scan Ulang
+              </a>
+            </div>
           </div>
         </div>
       </section>
-    `
+
+      <!-- Modal Notifikasi -->
+<div id="notification-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+  <div class="bg-white w-11/12 max-w-sm rounded-xl shadow-xl p-6 text-center">
+    <div id="modal-icon" class="text-4xl mb-4 text-green-600">
+      <i class="fas fa-check-circle"></i>
+    </div>
+    <h3 id="modal-message" class="text-lg font-semibold text-gray-700 mb-4">Berhasil menyimpan hasil scan!</h3>
+    <button id="close-modal" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium">
+      Tutup
+    </button>
+  </div>
+</div>
+
+    `;
   }
 
   async afterRender() {
-    let result;
+    const resultImage = document.getElementById('result-image');
+    const resultList = document.getElementById('result-list');
+    const saveButton = document.getElementById('save-button');
+
+    if (!resultImage || !resultList || !saveButton) {
+      console.error('❌ Elemen halaman tidak ditemukan.');
+      return;
+    }
+
+    let data;
+    const storedData = sessionStorage.getItem('scanResult');
+    if (!storedData) {
+      resultList.innerHTML =
+        '<li class="text-red-600">Data hasil tidak ditemukan.</li>';
+      return;
+    }
+
     try {
-      const stored = localStorage.getItem('scanResult');
-      result = stored ? JSON.parse(stored) : null;
-    } catch (e) {
-      console.error("Gagal memuat data dari localStorage:", e);
+      data = JSON.parse(storedData);
+    } catch {
+      resultList.innerHTML = '<li class="text-red-600">Data hasil rusak.</li>';
+      return;
     }
 
-    const fallback = {
-      prediction: 'Kurang Segar',
-      confidence: 0.78,
-      fishType: 'Ikan Kembung',
-      timestamp: new Date().toLocaleString('id-ID', {
-        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-        hour: '2-digit', minute: '2-digit'
-      }),
-      recommendation: 'Segera dimasak hari ini atau dibekukan untuk mencegah pembusukan.',
-      image: '', // fallback tanpa gambar
+    // Tampilkan gambar hasil scan
+    if (data.imageData) {
+      resultImage.src = data.imageData;
+      resultImage.alt = 'Hasil Scan Ikan';
+    } else {
+      resultImage.src = '';
+      resultImage.alt = 'Gambar tidak tersedia';
     }
 
-    result = result || fallback;
-
-    const colorMap = {
-      'Segar': 'text-green-600 border-green-500 bg-green-100',
-      'Kurang Segar': 'text-yellow-700 border-yellow-500 bg-yellow-100',
-      'Tidak Segar': 'text-red-600 border-red-500 bg-red-100'
+    // Tampilkan hasil deteksi
+    const result = data.result || [];
+    if (Array.isArray(result) && result.length > 0) {
+      resultList.innerHTML = '';
+      result.forEach((item) => {
+        const details = Object.entries(item)
+          .map(([key, value]) => {
+            const label = key
+              .replace(/_/g, ' ')
+              .replace(/\b\w/g, (l) => l.toUpperCase());
+            return `<strong>${label}</strong>: ${value}`;
+          })
+          .join('<br>');
+        resultList.innerHTML += `
+          <li>
+            <div class="p-4 bg-blue-50 rounded-lg shadow-sm border border-blue-200">
+              ${details}
+            </div>
+          </li>`;
+      });
+    } else {
+      resultList.innerHTML =
+        '<li class="text-gray-600">Tidak ada informasi ikan yang terdeteksi.</li>';
     }
 
-    const resultClass = colorMap[result.prediction] || 'text-gray-700 border-gray-300 bg-gray-100'
+    function showModal(success = true, message = '') {
+      const modal = document.getElementById('notification-modal');
+      const icon = document.getElementById('modal-icon');
+      const msg = document.getElementById('modal-message');
+      const closeBtn = document.getElementById('close-modal');
 
-    const content = document.getElementById('result-content')
+      if (!modal || !icon || !msg || !closeBtn) return;
 
-    content.innerHTML = `
-      <div class="rounded-lg p-4 border ${resultClass}">
-        <h3 class="text-lg font-semibold mb-1">Status Kesegaran:</h3>
-        <p class="text-2xl font-bold">${result.prediction}</p>
-      </div>
+      icon.innerHTML = success
+        ? '<i class="fas fa-check-circle"></i>'
+        : '<i class="fas fa-times-circle"></i>';
+      icon.className = `text-4xl mb-4 ${
+        success ? 'text-green-600' : 'text-red-600'
+      }`;
 
-      <div>
-        <h4 class="font-medium text-gray-700">Jenis Ikan:</h4>
-        <p>${result.fishType}</p>
-      </div>
+      msg.textContent = message;
+      modal.classList.remove('hidden');
 
-      <div>
-        <h4 class="font-medium text-gray-700">Akurasi AI:</h4>
-        <p>${Math.round(result.confidence * 100)}%</p>
-      </div>
+      closeBtn.onclick = () => {
+        modal.classList.add('hidden');
+      };
+    }    
 
-      <div>
-        <h4 class="font-medium text-gray-700">Waktu Analisis:</h4>
-        <p>${result.timestamp}</p>
-      </div>
+    // Validasi user login
+    const loggedInUserStr = localStorage.getItem('loggedInUser');
+    let loggedInUser;
+    try {
+      if (!loggedInUserStr) throw new Error('Belum login');
+      loggedInUser = JSON.parse(loggedInUserStr);
+      if (!loggedInUser?.email || !loggedInUser?.name)
+        throw new Error('Data user tidak lengkap');
+    } catch (err) {
+      saveButton.disabled = true;
+      saveButton.title = 'Login dulu untuk menyimpan hasil scan';
+      return;
+    }
 
-      <div>
-        <h4 class="font-medium text-gray-700">Saran Penggunaan:</h4>
-        <p>${result.recommendation}</p>
-      </div>
+    // Aktifkan tombol simpan
+    saveButton.disabled = false;
+    saveButton.title = '';
 
-      ${result.image ? `
-      <div>
-        <h4 class="font-medium text-gray-700">Gambar Hasil Scan:</h4>
-        <img src="${result.image}" alt="Gambar Hasil" class="rounded-lg mt-2 shadow max-h-64 w-full object-contain" />
-      </div>` : ''}
-    `
+    // Saat tombol simpan diklik
+    saveButton.addEventListener('click', async () => {
+      saveButton.disabled = true;
+
+      try {
+        // Pastikan data.result sudah berisi objek hasil scan lengkap
+        const historyData = {
+          email: loggedInUser.email,
+          name: loggedInUser.name,
+          imageData: data.imageData || '',
+          result: data.result || [],
+          savedAt: new Date().toISOString(),
+        };
+
+        await saveHistoryToDB(historyData);
+        showModal(true, '✅ Hasil scan berhasil disimpan!');
+      } catch (error) {
+        showModal(false, '❌ Terjadi kesalahan saat menyimpan hasil scan.');
+      } finally {
+        saveButton.disabled = false;
+      }
+    });
+    
+    
+    
   }
 }

@@ -1,49 +1,68 @@
+// src/data/indexdb.js
 import { openDB } from 'idb';
 
-const DB_NAME = 'SegarikanDB';
-const DB_VERSION = 1;
-const USER_STORE = 'users';
+const DB_NAME = 'segarikanDB';
+const DB_VERSION = 3;
+const STORE_HISTORY = 'history';
+const STORE_USERS = 'users';
 
-let dbPromise = null;
+export async function getDB() {
+  return openDB(DB_NAME, DB_VERSION, {
+    upgrade(db) {
+      if (!db.objectStoreNames.contains(STORE_HISTORY)) {
+        db.createObjectStore(STORE_HISTORY, {
+          keyPath: 'id',
+          autoIncrement: true,
+        });
+      }
 
-export const initDB = async () => {
-  if (!dbPromise) {
-    dbPromise = openDB(DB_NAME, DB_VERSION, {
-      upgrade(db) {
-        if (!db.objectStoreNames.contains(USER_STORE)) {
-          const store = db.createObjectStore(USER_STORE, { keyPath: 'email' });
-          store.createIndex('name', 'name', { unique: false });
-        }
-      },
-    });
-  }
-  return dbPromise;
-};
+      if (!db.objectStoreNames.contains(STORE_USERS)) {
+        db.createObjectStore(STORE_USERS, {
+          keyPath: 'id',
+          autoIncrement: true,
+        });
+      }
+    },
+  });
+}
 
-export const saveUser = async (user) => {
-  try {
-    const db = await initDB();
-    const tx = db.transaction(USER_STORE, 'readwrite');
-    const store = tx.objectStore(USER_STORE);
-    await store.put(user);
-    await tx.done;
-    return true;
-  } catch (error) {
-    console.error('Gagal menyimpan user ke IndexedDB:', error);
-    return false;
-  }
-};
+export async function initDB() {
+  return getDB();
+}
 
-export const getUserByEmail = async (email) => {
-  try {
-    const db = await initDB();
-    const tx = db.transaction(USER_STORE, 'readonly');
-    const store = tx.objectStore(USER_STORE);
-    const user = await store.get(email);
-    await tx.done;
-    return user || null;
-  } catch (error) {
-    console.error('Gagal mengambil user berdasarkan email:', error);
-    return null;
-  }
-};
+export async function saveUser(user) {
+  const db = await getDB();
+  const tx = db.transaction(STORE_USERS, 'readwrite');
+  const store = tx.objectStore(STORE_USERS);
+  await store.add(user);
+  await tx.done;
+  return true;
+}
+
+export async function getUserByEmail(email) {
+  const db = await getDB();
+  const tx = db.transaction(STORE_USERS, 'readonly');
+  const store = tx.objectStore(STORE_USERS);
+  const allUsers = await store.getAll();
+  await tx.done;
+  return allUsers.find((user) => user.email === email);
+}
+
+export async function saveHistoryToDB(data) {
+  const db = await getDB();
+  const tx = db.transaction(STORE_HISTORY, 'readwrite');
+  const store = tx.objectStore(STORE_HISTORY);
+  const insertedId = await store.add(data); // tangkap key hasil autoIncrement
+  await tx.done;
+  return insertedId; // opsional: return id jika ingin dipakai
+}
+
+
+export async function getAllHistoryFromDB() {
+  const db = await getDB();
+  const tx = db.transaction(STORE_HISTORY, 'readonly');
+  const store = tx.objectStore(STORE_HISTORY);
+  const allHistory = await store.getAll();
+  await tx.done;
+  return allHistory;
+}
