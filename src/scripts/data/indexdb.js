@@ -1,5 +1,5 @@
-// src/data/indexdb.js
 import { openDB } from 'idb';
+import CONFIG from '../../scripts/config.js';
 
 const DB_NAME = 'segarikanDB';
 const DB_VERSION = 3;
@@ -48,15 +48,73 @@ export async function getUserByEmail(email) {
   return allUsers.find((user) => user.email === email);
 }
 
+// Fungsi saveHistoryToDB sudah diperbaiki untuk upload foto ke API dengan FormData
 export async function saveHistoryToDB(data) {
   const db = await getDB();
   const tx = db.transaction(STORE_HISTORY, 'readwrite');
   const store = tx.objectStore(STORE_HISTORY);
-  const insertedId = await store.add(data); // tangkap key hasil autoIncrement
+  const insertedId = await store.add(data);
   await tx.done;
-  return insertedId; // opsional: return id jika ingin dipakai
-}
 
+  const token = data.token;
+
+  try {
+    // Konversi base64 ke Blob
+    const base64ToBlob = (base64) => {
+      const parts = base64.split(';base64,');
+      const contentType = parts[0].split(':')[1];
+      const raw = atob(parts[1]);
+      const rawLength = raw.length;
+      const uInt8Array = new Uint8Array(rawLength);
+      for (let i = 0; i < rawLength; i++) {
+        uInt8Array[i] = raw.charCodeAt(i);
+      }
+      return new Blob([uInt8Array], { type: contentType });
+    };
+
+    // Buat FormData
+    const formData = new FormData();
+
+    if (data.email) formData.append('email', data.email);
+    if (data.name) formData.append('name', data.name);
+    if (data.result) formData.append('result', data.result);
+    if (data.savedAt) formData.append('savedAt', data.savedAt);
+
+    if (data.imageData) {
+      const photoBlob = base64ToBlob(data.imageData);
+      formData.append('photo', photoBlob, 'photo.png'); // Nama file bisa disesuaikan
+    } else {
+      console.warn(
+        '⚠️ Data imageData kosong, API mungkin akan menolak request'
+      );
+    }
+
+    const response = await fetch(`${CONFIG.BASE_URL}/v1/stories`, {
+      method: 'POST',
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+        // Jangan set Content-Type karena FormData akan otomatis mengaturnya
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorJson = await response.json();
+      console.error(
+        '❌ Gagal mengirim data ke API:',
+        response.status,
+        errorJson
+      );
+    } else {
+      const result = await response.json();
+      console.log('✅ Data history berhasil dikirim ke API:', result);
+    }
+  } catch (error) {
+    console.error('❌ Terjadi kesalahan saat mengirim ke API:', error);
+  }
+
+  return insertedId;
+}
 
 export async function getAllHistoryFromDB() {
   const db = await getDB();

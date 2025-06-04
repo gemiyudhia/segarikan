@@ -74,7 +74,6 @@ class App {
     }
 
     if (!page) {
-      console.error(`Route '${url}' tidak ditemukan`);
       this.#content.innerHTML = `
         <section style="padding:2rem; text-align:center;">
           <h2>404 - Halaman Tidak Ditemukan</h2>

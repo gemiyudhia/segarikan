@@ -40,8 +40,8 @@ export default class ProfilePage {
       <div class="bg-white rounded-xl shadow-lg p-6 border-t-4 border-green-600">
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-gray-600 text-sm">Ikan Segar</p>
-            <p class="text-2xl font-bold text-green-700" id="fresh-count">0</p>
+            <p class="text-gray-600 text-sm">Deteksi Tinggi</p>
+            <p class="text-2xl font-bold text-green-700" id="high-confidence-count">0</p>
           </div>
           <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -51,15 +51,15 @@ export default class ProfilePage {
         </div>
       </div>
       
-      <div class="bg-white rounded-xl shadow-lg p-6 border-t-4 border-red-600">
+      <div class="bg-white rounded-xl shadow-lg p-6 border-t-4 border-yellow-600">
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-gray-600 text-sm">Ikan Tidak Segar</p>
-            <p class="text-2xl font-bold text-red-700" id="not-fresh-count">0</p>
+            <p class="text-gray-600 text-sm">Deteksi Rendah</p>
+            <p class="text-2xl font-bold text-yellow-700" id="low-confidence-count">0</p>
           </div>
-          <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          <div class="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
             </svg>
           </div>
         </div>
@@ -99,6 +99,14 @@ export default class ProfilePage {
 
     // Load and display history
     await this.loadHistory();
+
+    // Add event listener for start scan button
+    const startScanBtn = document.getElementById('start-scan-btn');
+    if (startScanBtn) {
+      startScanBtn.addEventListener('click', () => {
+        window.location.hash = '#/scan';
+      });
+    }
   }
 
   loadUserData() {
@@ -115,6 +123,29 @@ export default class ProfilePage {
         userData.memberSince || new Date().toLocaleDateString();
       document.getElementById('member-since').textContent = memberSince;
     }
+  }
+
+  // Helper functions (same as ResultPage)
+  formatScore(score) {
+    if (score === undefined || score === null) return 'N/A';
+    const percentage = (parseFloat(score) * 100).toFixed(1);
+    return `${percentage}%`;
+  }
+
+  getConfidenceColor(score) {
+    if (score === undefined || score === null) return 'gray';
+    const percentage = parseFloat(score) * 100;
+    if (percentage >= 80) return 'green';
+    if (percentage >= 60) return 'yellow';
+    return 'red';
+  }
+
+  getConfidenceText(score) {
+    if (score === undefined || score === null) return 'Tidak diketahui';
+    const percentage = parseFloat(score) * 100;
+    if (percentage >= 80) return 'Tinggi';
+    if (percentage >= 60) return 'Sedang';
+    return 'Rendah';
   }
 
   async loadHistory() {
@@ -135,7 +166,7 @@ export default class ProfilePage {
         historyContainer.classList.add('hidden');
         emptyState.classList.remove('hidden');
         return;
-      } 
+      }
 
       // Calculate statistics
       this.calculateStatistics(filteredHistory);
@@ -145,64 +176,106 @@ export default class ProfilePage {
       emptyState.classList.add('hidden');
 
       // Sort by date (newest first)
-      historyList.sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
+      filteredHistory.sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
 
       // Render each history item
-      historyList.forEach((item, index) => {
+      filteredHistory.forEach((item, index) => {
         const date = new Date(item.savedAt);
         const dateStr = date.toLocaleString();
         const dateIso = date.toISOString();
 
-        const result = item.result?.[0] || {};
+        // Handle both old and new result formats
+        const results = item.result || [];
+        if (results.length === 0) {
+          return; // Skip items with no results
+        }
 
-        const confidence =
-          result.confidence !== undefined
-            ? (result.confidence * 100).toFixed(2) + '%'
-            : '-';
-        const freshness = result.freshness || '-';
-        const recommendation = result.recommendation || '-';
+        // Create HTML for each result in the history item
+        let resultsHtml = '';
+        results.forEach((result, resultIndex) => {
+          let fishType = 'Tidak diketahui';
+          let confidence = 'N/A';
+          let confidenceColor = 'gray';
+          let confidenceText = 'Tidak diketahui';
 
-        // Determine freshness status for styling
-        const isFresh =
-          freshness.toLowerCase().includes('segar') ||
-          freshness.toLowerCase().includes('fresh');
-        const statusColor = isFresh ? 'green' : 'red';
-        const statusBg = isFresh
-          ? 'bg-green-50 border-green-200'
-          : 'bg-red-50 border-red-200';
+          // Handle new format (step, type, score)
+          if (result.step && result.type && result.score !== undefined) {
+            fishType = result.type;
+            confidence = this.formatScore(result.score);
+            confidenceColor = this.getConfidenceColor(result.score);
+            confidenceText = this.getConfidenceText(result.score);
+          }
+          // Handle old format (confidence, freshness, recommendation)
+          else if (result.confidence !== undefined) {
+            confidence = this.formatScore(result.confidence);
+            confidenceColor = this.getConfidenceColor(result.confidence);
+            confidenceText = this.getConfidenceText(result.confidence);
+            fishType = result.freshness || 'Tidak diketahui';
+          }
+
+          resultsHtml += `
+            <div class="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 mb-3">
+              <div class="flex items-center justify-between mb-2">
+                <h4 class="text-sm font-semibold text-blue-700">
+                  <i class="fas fa-fish mr-1"></i>Hasil #${resultIndex + 1}
+                </h4>
+                <span class="text-xs text-gray-500">${
+                  result.step || 'Analisis'
+                }</span>
+              </div>
+              
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                <div>
+                  <span class="font-medium text-gray-600">Jenis:</span>
+                  <div class="text-blue-600 font-semibold">${fishType}</div>
+                </div>
+                <div>
+                  <span class="font-medium text-gray-600">Akurasi:</span>
+                  <div class="text-${confidenceColor}-600 font-semibold">${confidence}</div>
+                </div>
+                <div>
+                  <span class="font-medium text-gray-600">Kepercayaan:</span>
+                  <div class="text-${confidenceColor}-600 font-medium">${confidenceText}</div>
+                </div>
+              </div>
+              
+              ${
+                result.recommendation
+                  ? `
+                <div class="mt-2 pt-2 border-t border-blue-200">
+                  <span class="font-medium text-gray-600 text-sm">Rekomendasi:</span>
+                  <div class="text-gray-700 text-sm">${result.recommendation}</div>
+                </div>
+              `
+                  : ''
+              }
+            </div>
+          `;
+        });
 
         const html = `
-          <div class="border rounded-lg p-6 shadow-sm bg-white hover:shadow-md transition-shadow ${statusBg}">
+          <div class="border rounded-xl p-6 shadow-sm bg-white hover:shadow-md transition-shadow">
             <div class="flex flex-col md:flex-row md:items-start gap-4">
               <div class="flex-1">
                 <div class="flex items-center gap-2 mb-3">
                   <span class="text-sm font-medium text-gray-500">Scan #${
-                    historyList.length - index
+                    filteredHistory.length - index
                   }</span>
-                  <span class="w-2 h-2 bg-${statusColor}-500 rounded-full"></span>
-                  <span class="text-sm font-medium text-${statusColor}-700">${freshness}</span>
+                  <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
+                  <span class="text-sm font-medium text-blue-700">${
+                    results.length
+                  } Hasil Deteksi</span>
                 </div>
                 
-                <p class="font-semibold text-blue-700 mb-2">
+                <p class="font-semibold text-blue-700 mb-4">
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <time datetime="${dateIso}">${dateStr}</time>
                 </p>
                 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-                  <div>
-                    <span class="font-medium text-gray-700">Confidence:</span>
-                    <span class="ml-1 text-gray-600">${confidence}</span>
-                  </div>
-                  <div>
-                    <span class="font-medium text-gray-700">Status:</span>
-                    <span class="ml-1 text-${statusColor}-600 font-medium">${freshness}</span>
-                  </div>
-                  <div class="md:col-span-1">
-                    <span class="font-medium text-gray-700">Rekomendasi:</span>
-                    <span class="ml-1 text-gray-600">${recommendation}</span>
-                  </div>
+                <div class="space-y-2">
+                  ${resultsHtml}
                 </div>
               </div>
               
@@ -220,7 +293,6 @@ export default class ProfilePage {
         historyContainer.insertAdjacentHTML('beforeend', html);
       });
     } catch (error) {
-      console.error('Error loading history:', error);
       historyContainer.innerHTML = `
         <div class="text-center py-8">
           <p class="text-red-600">Terjadi kesalahan saat memuat riwayat.</p>
@@ -231,25 +303,38 @@ export default class ProfilePage {
 
   calculateStatistics(historyList) {
     const totalScans = historyList.length;
-    let freshCount = 0;
-    let notFreshCount = 0;
+    let highConfidenceCount = 0;
+    let lowConfidenceCount = 0;
 
     historyList.forEach((item) => {
-      const result = item.result?.[0] || {};
-      const freshness = result.freshness || '';
+      const results = item.result || [];
+      results.forEach((result) => {
+        let score = null;
 
-      if (
-        freshness.toLowerCase().includes('segar') ||
-        freshness.toLowerCase().includes('fresh')
-      ) {
-        freshCount++;
-      } else {
-        notFreshCount++;
-      }
+        // Handle new format
+        if (result.score !== undefined) {
+          score = result.score;
+        }
+        // Handle old format
+        else if (result.confidence !== undefined) {
+          score = result.confidence;
+        }
+
+        if (score !== null) {
+          const percentage = parseFloat(score) * 100;
+          if (percentage >= 80) {
+            highConfidenceCount++;
+          } else if (percentage < 60) {
+            lowConfidenceCount++;
+          }
+        }
+      });
     });
 
     document.getElementById('total-scans').textContent = totalScans;
-    document.getElementById('fresh-count').textContent = freshCount;
-    document.getElementById('not-fresh-count').textContent = notFreshCount;
+    document.getElementById('high-confidence-count').textContent =
+      highConfidenceCount;
+    document.getElementById('low-confidence-count').textContent =
+      lowConfidenceCount;
   }
 }

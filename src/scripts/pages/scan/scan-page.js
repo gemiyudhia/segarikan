@@ -75,8 +75,6 @@ export default class ScanPage {
   }
 
   async afterRender() {
-    console.log('🚀 ScanPage afterRender started');
-
     const video = document.getElementById('camera-stream');
     const canvas = document.getElementById('snapshot');
     const scanButton = document.getElementById('scan-button');
@@ -105,7 +103,8 @@ export default class ScanPage {
     detectionStatus.textContent = '';
     detectionStatus.className = 'text-center font-semibold text-lg mt-2';
 
-    const API_BASE = 'http://127.0.0.1:9000/api';
+    // Updated API URL to match the second code
+    const API_BASE = 'https://web-production-401db.up.railway.app';
 
     async function startCamera() {
       if (stream) {
@@ -121,11 +120,10 @@ export default class ScanPage {
         const videoElement = document.getElementById('camera-stream');
         videoElement.srcObject = stream;
         videoElement.play();
+        videoElement.hidden = false;
+        cameraPlaceholder.classList.add('hidden');
       } catch (error) {
-        console.error('Gagal mengakses kamera:', error);
-        document
-          .getElementById('camera-placeholder')
-          .classList.remove('hidden');
+        cameraPlaceholder.classList.remove('hidden');
       }
     }
 
@@ -139,15 +137,16 @@ export default class ScanPage {
       startCamera();
     });
 
-    // Function to make API call to check fish
-    const checkFishWithAPI = async (imageData, endpoint = 'predict') => {
-      console.log(`🌐 Making API call to /${endpoint}`);
+    // Updated function to match the second code's API call pattern
+    const sendToBackend = async (imageBase64) => {
+      detectionStatus.textContent = 'Memproses...';
+      detectionStatus.className = 'text-gray-700 font-semibold text-lg mt-2';
 
       try {
-        const response = await fetch(`${API_BASE}/${endpoint}`, {
+        const response = await fetch(`${API_BASE}/predict`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image: imageData }),
+          body: JSON.stringify({ image: imageBase64 }),
         });
 
         if (!response.ok) {
@@ -155,25 +154,19 @@ export default class ScanPage {
         }
 
         const data = await response.json();
-        console.log(`📊 API response from /${endpoint}:`, data);
-        return data;
-      } catch (error) {
-        console.error(`❌ API error for /${endpoint}:`, error);
 
-        // Fallback to /check_fish if /predict fails
-        if (endpoint === 'predict') {
-          console.log('🔄 Trying fallback route /check_fish');
-          return await checkFishWithAPI(imageData, 'check_fish');
+        if (data.error) {
+          throw new Error(data.error);
         }
 
+        return data;
+      } catch (error) {
         throw error;
       }
     };
 
     // Function to navigate to result page with data
     const navigateToResult = (resultData, imageData) => {
-      console.log('📄 Navigating to result page with data:', resultData);
-
       try {
         // Store result data in sessionStorage for the result page
         const resultToStore = {
@@ -182,110 +175,52 @@ export default class ScanPage {
           timestamp: new Date().toISOString(),
         };
 
-        console.log('💾 Storing result in sessionStorage:', resultToStore);
         sessionStorage.setItem('scanResult', JSON.stringify(resultToStore));
 
         // Navigate to result page
-        console.log('🔄 Changing hash to #/result');
         window.location.hash = '#/result';
       } catch (error) {
-        console.error('❌ Error in navigateToResult:', error);
         alert('Terjadi kesalahan saat menyimpan hasil scan');
       }
     };
 
-    // Function to process API response and extract valid results
+    // Function to process API response
     const processAPIResponse = (data) => {
-      console.log('🔍 Processing API response:', data);
-      console.log('📋 Response keys:', Object.keys(data));
-
-      // Debug semua properti response
-      for (const [key, value] of Object.entries(data)) {
-        console.log(`📋 ${key}:`, value, `(type: ${typeof value})`);
-      }
-
-      // Check berbagai kemungkinan format response
-      let hasValidResult = false;
-      let resultToUse = null;
-
-      // Format 1: data.result (array)
-      if (data.result && Array.isArray(data.result) && data.result.length > 0) {
-        console.log('✅ Format 1: Found data.result array');
-        hasValidResult = true;
-        resultToUse = data;
-      }
-      // Format 2: data langsung adalah array
-      else if (Array.isArray(data) && data.length > 0) {
-        console.log('✅ Format 2: Data is direct array');
-        hasValidResult = true;
-        resultToUse = { result: data };
-      }
-      // Format 3: data.predictions atau data.detections
-      else if (
-        (data.predictions && data.predictions.length > 0) ||
-        (data.detections && data.detections.length > 0)
-      ) {
-        console.log('✅ Format 3: Found predictions/detections');
-        hasValidResult = true;
-        resultToUse = {
-          result: data.predictions || data.detections,
+      // Check if we have valid result data
+      if (data.step && data.result && data.score !== undefined) {
+        return {
+          hasValidResult: true,
+          resultToUse: {
+            result: [
+              {
+                step: data.step,
+                type: data.result,
+                score: data.score,
+              },
+            ],
+          },
         };
       }
-      // Format 4: data.fish_type atau data.freshness langsung ada
-      else if (
-        data.fish_type ||
-        data.freshness ||
-        data.type ||
-        data.class ||
-        data.species
-      ) {
-        console.log('✅ Format 4: Found direct fish data');
-        hasValidResult = true;
-        resultToUse = {
-          result: [data],
-        };
-      }
-      // Format 5: cek jika ada property yang mengandung array
-      else {
-        console.log('🔍 Checking for arrays in response...');
-        for (const [key, value] of Object.entries(data)) {
-          if (Array.isArray(value) && value.length > 0) {
-            console.log(`✅ Format 5: Found array in ${key}`);
-            hasValidResult = true;
-            resultToUse = { result: value };
-            break;
-          }
-        }
-      }
 
-      return { hasValidResult, resultToUse };
+      return { hasValidResult: false, resultToUse: null };
     };
 
+    // Simplified camera detection - remove continuous detection
     const initCamera = async () => {
-      console.log('📷 Initializing camera...');
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         try {
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'environment' },
-          });
-          video.srcObject = stream;
-          cameraPlaceholder.classList.add('hidden');
-          scanButton.disabled = true;
-          detectionStatus.textContent = '🔄 Mendeteksi ikan...';
+          await startCamera();
+          scanButton.disabled = false;
+          detectionStatus.textContent = '📷 Siap untuk scan';
           detectionStatus.className =
-            'text-gray-700 font-semibold text-lg mt-2';
-          console.log('✅ Camera initialized successfully');
-          startFishDetection();
+            'text-green-600 font-semibold text-lg mt-2';
         } catch (err) {
-          console.error('❌ Camera initialization failed:', err);
           cameraPlaceholder.classList.remove('hidden');
           scanButton.disabled = true;
-          stopFishDetection();
           detectionStatus.textContent = '⚠️ Kamera tidak tersedia';
           detectionStatus.className = 'text-red-600 font-semibold text-lg mt-2';
         }
       } else {
-        console.error('❌ Camera not supported');
         cameraPlaceholder.classList.remove('hidden');
         scanButton.disabled = true;
         detectionStatus.textContent = '⚠️ Kamera tidak didukung browser';
@@ -293,96 +228,47 @@ export default class ScanPage {
       }
     };
 
-    const stopFishDetection = () => {
-      console.log('⏹️ Stopping fish detection');
-      if (detectionInterval) {
-        clearInterval(detectionInterval);
-        detectionInterval = null;
-      }
-    };
-
-    const startFishDetection = () => {
-      console.log('🔍 Starting fish detection');
-      if (detectionInterval) clearInterval(detectionInterval);
-
-      detectionInterval = setInterval(async () => {
-        if (video.videoWidth === 0 || video.videoHeight === 0) return;
-
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const base64Image = canvas.toDataURL('image/jpeg', 0.6);
-        currentImageData = base64Image;
-
-        try {
-          console.log('🔍 Sending detection request...');
-          const data = await checkFishWithAPI(base64Image);
-
-          if (data.fishDetected && !fishDetected) {
-            fishDetected = true;
-            detectionStatus.textContent = '✅ Ikan terdeteksi!';
-            detectionStatus.className =
-              'text-green-600 font-semibold text-lg mt-2';
-            scanButton.disabled = false;
-            console.log('🐟 Fish detected! Scan button enabled');
-          } else if (!data.fishDetected) {
-            fishDetected = false;
-            detectionStatus.textContent = '🔄 Mendeteksi ikan...';
-            detectionStatus.className =
-              'text-gray-700 font-semibold text-lg mt-2';
-            scanButton.disabled = true;
-          }
-        } catch (error) {
-          console.error('❌ Fish detection error:', error);
-          detectionStatus.textContent = '❌ Terjadi kesalahan saat mendeteksi';
-          detectionStatus.className = 'text-red-600 font-semibold text-lg mt-2';
-          scanButton.disabled = true;
-        }
-      }, 2000);
-    };
-
+    // Updated scan button handler to match the second code pattern
     scanButton.addEventListener('click', async () => {
       try {
         loadingOverlay.classList.remove('hidden');
-        detectionStatus.textContent = '';
+        scanButton.disabled = true;
 
-        snapshotCanvas.width = cameraStream.videoWidth;
-        snapshotCanvas.height = cameraStream.videoHeight;
+        // Capture image from video
+        snapshotCanvas.width = video.videoWidth;
+        snapshotCanvas.height = video.videoHeight;
         const ctx = snapshotCanvas.getContext('2d');
-        ctx.drawImage(
-          cameraStream,
-          0,
-          0,
-          snapshotCanvas.width,
-          snapshotCanvas.height
-        );
+        ctx.drawImage(video, 0, 0, snapshotCanvas.width, snapshotCanvas.height);
 
-        const base64Image = snapshotCanvas.toDataURL('image/jpeg', 0.8);
+        const base64Image = snapshotCanvas.toDataURL('image/jpeg');
 
-        const data = await checkFishWithAPI(base64Image);
+        // Send to backend using the updated function
+        const data = await sendToBackend(base64Image);
         const { hasValidResult, resultToUse } = processAPIResponse(data);
 
         if (hasValidResult && resultToUse) {
-          if (videoStream)
-            videoStream.getTracks().forEach((track) => track.stop());
+          // Stop camera stream
+          if (stream) {
+            stream.getTracks().forEach((track) => track.stop());
+          }
           navigateToResult(resultToUse, base64Image);
         } else {
           detectionStatus.textContent = '⚠️ Tidak dapat mendeteksi jenis ikan.';
           detectionStatus.className = 'text-red-600 font-semibold text-lg mt-2';
         }
       } catch (err) {
-        console.error('❌ Error saat scan kamera:', err);
-        detectionStatus.textContent = '⚠️ Gagal memproses scan.';
+        detectionStatus.textContent = `⚠️ ${
+          err.message || 'Gagal memproses scan.'
+        }`;
         detectionStatus.className = 'text-red-600 font-semibold text-lg mt-2';
       } finally {
         loadingOverlay.classList.add('hidden');
+        scanButton.disabled = false;
       }
     });
 
     // Tab toggle
     cameraTab.addEventListener('click', () => {
-      console.log('📷 Camera tab clicked');
       cameraTab.classList.add('text-blue-700', 'border-b-2', 'border-blue-700');
       cameraTab.classList.remove('text-gray-500');
       uploadTab.classList.remove(
@@ -398,7 +284,6 @@ export default class ScanPage {
     });
 
     uploadTab.addEventListener('click', () => {
-      console.log('📤 Upload tab clicked');
       uploadTab.classList.add('text-blue-700', 'border-b-2', 'border-blue-700');
       uploadTab.classList.remove('text-gray-500');
       cameraTab.classList.remove(
@@ -410,13 +295,13 @@ export default class ScanPage {
       uploadView.classList.remove('hidden');
       cameraView.classList.add('hidden');
       detectionStatus.textContent = '';
-      stopFishDetection();
-      if (video.srcObject) {
-        video.srcObject.getTracks().forEach((track) => track.stop());
+      // Stop camera when switching to upload
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
       }
     });
 
-    // Upload file
+    // Upload file handlers
     browseButton.addEventListener('click', () => {
       fileInput.click();
     });
@@ -424,12 +309,14 @@ export default class ScanPage {
     fileInput.addEventListener('change', () => {
       if (fileInput.files && fileInput.files[0]) {
         selectedFile = fileInput.files[0];
-        const url = URL.createObjectURL(selectedFile);
-        imagePreview.src = url;
-        previewContainer.classList.remove('hidden');
-        uploadScanButton.disabled = false;
-        detectionStatus.textContent = '';
-        console.log('📁 File selected:', selectedFile.name);
+        const reader = new FileReader();
+        reader.onload = function () {
+          imagePreview.src = reader.result;
+          previewContainer.classList.remove('hidden');
+          uploadScanButton.disabled = false;
+          detectionStatus.textContent = '';
+        };
+        reader.readAsDataURL(selectedFile);
       } else {
         selectedFile = null;
         previewContainer.classList.add('hidden');
@@ -453,61 +340,54 @@ export default class ScanPage {
       dropArea.classList.remove('border-blue-500', 'bg-blue-50');
       if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
         selectedFile = e.dataTransfer.files[0];
-        fileInput.files = e.dataTransfer.files;
-        const url = URL.createObjectURL(selectedFile);
-        imagePreview.src = url;
-        previewContainer.classList.remove('hidden');
-        uploadScanButton.disabled = false;
-        detectionStatus.textContent = '';
-        console.log('🗂️ File dropped:', selectedFile.name);
+        const reader = new FileReader();
+        reader.onload = function () {
+          imagePreview.src = reader.result;
+          previewContainer.classList.remove('hidden');
+          uploadScanButton.disabled = false;
+          detectionStatus.textContent = '';
+        };
+        reader.readAsDataURL(selectedFile);
       }
     });
 
+    // Updated upload scan button handler
     uploadScanButton.addEventListener('click', async () => {
       if (!selectedFile) return;
 
-      console.log('📤 Upload scan button clicked');
       uploadScanButton.disabled = true;
       loadingOverlay.classList.remove('hidden');
-      detectionStatus.textContent = '';
 
       try {
-        console.log('📖 Reading file as base64...');
+        const reader = new FileReader();
         const base64Image = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
           reader.onload = () => resolve(reader.result);
           reader.onerror = reject;
           reader.readAsDataURL(selectedFile);
         });
 
-        console.log('🌐 Sending upload scan request to API...');
-        const data = await checkFishWithAPI(base64Image);
-
+        // Send to backend using the updated function
+        const data = await sendToBackend(base64Image);
         const { hasValidResult, resultToUse } = processAPIResponse(data);
 
         if (hasValidResult && resultToUse) {
-          console.log(
-            '✅ Valid upload result found, navigating to result page'
-          );
           navigateToResult(resultToUse, base64Image);
         } else {
-          console.log('⚠️ No valid upload result found');
           detectionStatus.textContent = '⚠️ Tidak dapat mendeteksi jenis ikan.';
           detectionStatus.className = 'text-red-600 font-semibold text-lg mt-2';
         }
       } catch (error) {
-        console.error('❌ Upload scan error:', error);
-        detectionStatus.textContent = '⚠️ Gagal memproses scan.';
+        detectionStatus.textContent = `⚠️ ${
+          error.message || 'Gagal memproses scan.'
+        }`;
         detectionStatus.className = 'text-red-600 font-semibold text-lg mt-2';
       } finally {
-        console.log('🔄 Hiding upload loading overlay');
         loadingOverlay.classList.add('hidden');
         uploadScanButton.disabled = false;
       }
     });
 
     // Start camera tab by default
-    console.log('🚀 Starting camera tab by default');
     cameraTab.click();
   }
 }

@@ -192,7 +192,7 @@ export default class HomePage {
           notFreshCount;
       }
     } catch (error) {
-      console.error('Error loading quick stats:', error);
+      alert('Error loading quick stats:', error);
     }
   }
 }

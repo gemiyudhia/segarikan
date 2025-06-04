@@ -16,7 +16,6 @@ export const registerUser = async (userData) => {
 
     return await response.json();
   } catch (error) {
-    console.error('Gagal melakukan registrasi:', error.message);
     return { success: false, message: error.message };
   }
 };
