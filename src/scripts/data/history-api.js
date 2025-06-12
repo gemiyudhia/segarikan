@@ -1,6 +1,8 @@
+import CONFIG from "../config";
+
 export async function fetchUserHistory(token) {
   try {
-    const response = await fetch('URL_API_HISTORY', {
+    const response = await fetch(`${CONFIG.BASE_URL}/v1/history`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     if (!response.ok) {

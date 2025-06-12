@@ -1,3 +1,5 @@
+import CONFIG from "../config";
+
 // save-resul.js
 export async function saveHistoryToDB(data) {
   const token = localStorage.getItem('authToken');
@@ -8,7 +10,7 @@ export async function saveHistoryToDB(data) {
   }
 
   try {
-    const response = await fetch('https://api-segarikan-production.up.railway.app/v1/stories', {
+    const response = await fetch(`${CONFIG.BASE_URL}/v1/stories`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
