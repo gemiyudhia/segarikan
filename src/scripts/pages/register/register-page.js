@@ -1,4 +1,5 @@
-import { saveUser, initDB, getUserByEmail } from '../../data/indexdb.js';
+import CONFIG from '../../config.js';
+
 
 export default class RegisterPage {
   async render() {
@@ -48,9 +49,7 @@ export default class RegisterPage {
   }
 
   async afterRender() {
-    await initDB();
-
-    // Toggle Password Visibility
+    // Fungsi toggle show/hide password
     const togglePasswordBtn = document.getElementById('toggle-password');
     const passwordInput = document.getElementById('password');
     const eyeIcon = document.getElementById('eye-icon');
@@ -83,25 +82,27 @@ export default class RegisterPage {
         return;
       }
 
-      // Cek dulu apakah email sudah terdaftar
-      const existingUser = await getUserByEmail(email);
-      if (existingUser) {
-        alert('Email sudah terdaftar, silakan gunakan email lain.');
-        return;
-      }
-
-      const userData = { name, email, password };
-
       try {
-        const success = await saveUser(userData);
-        if (success) {
-          alert('Registrasi berhasil! Silakan login.');
-          window.location.hash = '/login';
-        } else {
-          alert('Registrasi gagal, coba lagi.');
+        const response = await fetch(`${CONFIG.BASE_URL}/v1/register`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ name, email, password }),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || result.error) {
+          alert(result.message || 'Registrasi gagal');
+          return;
         }
+
+        alert('Registrasi berhasil! Silakan login.');
+        window.location.hash = '/login';
       } catch (error) {
         alert('Terjadi kesalahan saat registrasi, coba lagi.');
+        console.error('Register error:', error);
       }
     });
   }

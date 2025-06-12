@@ -48,18 +48,24 @@ export async function getUserByEmail(email) {
   return allUsers.find((user) => user.email === email);
 }
 
-// Fungsi saveHistoryToDB sudah diperbaiki untuk upload foto ke API dengan FormData
 export async function saveHistoryToDB(data) {
   const db = await getDB();
   const tx = db.transaction(STORE_HISTORY, 'readwrite');
   const store = tx.objectStore(STORE_HISTORY);
+  
+  // pastikan data.result disimpan sebagai array / object (tidak berubah)
   const insertedId = await store.add(data);
+  
   await tx.done;
 
-  const token = data.token;
+  const token = data.token || localStorage.getItem('token');
+
+  if (!token) {
+    console.warn('⚠️ Token tidak ditemukan, data hanya disimpan di IndexedDB.');
+    return insertedId;
+  }
 
   try {
-    // Konversi base64 ke Blob
     const base64ToBlob = (base64) => {
       const parts = base64.split(';base64,');
       const contentType = parts[0].split(':')[1];
@@ -72,48 +78,41 @@ export async function saveHistoryToDB(data) {
       return new Blob([uInt8Array], { type: contentType });
     };
 
-    // Buat FormData
     const formData = new FormData();
-
     if (data.email) formData.append('email', data.email);
     if (data.name) formData.append('name', data.name);
-    if (data.result) formData.append('result', data.result);
+
+    // Perbaikan di sini: pastikan result dikirim sebagai JSON string, supaya server bisa membaca array
+    if (data.result) formData.append('result', JSON.stringify(data.result));
+
     if (data.savedAt) formData.append('savedAt', data.savedAt);
 
     if (data.imageData) {
       const photoBlob = base64ToBlob(data.imageData);
-      formData.append('photo', photoBlob, 'photo.png'); // Nama file bisa disesuaikan
-    } else {
-      console.warn(
-        '⚠️ Data imageData kosong, API mungkin akan menolak request'
-      );
+      formData.append('photo', photoBlob, 'photo.png');
     }
 
     const response = await fetch(`${CONFIG.BASE_URL}/v1/stories`, {
       method: 'POST',
       headers: {
-        ...(token && { Authorization: `Bearer ${token}` }),
-        // Jangan set Content-Type karena FormData akan otomatis mengaturnya
+        Authorization: `Bearer ${token}`,
       },
       body: formData,
     });
 
-    if (!response.ok) {
-      const errorJson = await response.json();
-      console.error(
-        '❌ Gagal mengirim data ke API:',
-        response.status,
-        errorJson
-      );
-    } else {
-      const result = await response.json();
-      console.log('✅ Data history berhasil dikirim ke API:', result);
-    }
-  } catch (error) {
-    console.error('❌ Terjadi kesalahan saat mengirim ke API:', error);
-  }
+    const resultJson = await response.json();
 
-  return insertedId;
+    if (!response.ok) {
+      console.warn('⚠️ Gagal mengirim data ke server:', resultJson);
+    } else {
+      console.info('✅ Berhasil mengirim data ke server API:', resultJson);
+    }
+
+    return insertedId;
+  } catch (error) {
+    console.error('❌ Error saat mengirim data ke server:', error);
+    return insertedId;
+  }
 }
 
 export async function getAllHistoryFromDB() {

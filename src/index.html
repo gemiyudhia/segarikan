@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="shortcut icon" href="/fish.png">
     <title>Segarikan | Pendeteksi Kesegaran Ikan</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.2/dist/tailwind.min.css" rel="stylesheet" />
   </head>
   <body class="bg-gray-50">
     <header class="bg-white shadow-md fixed w-full top-0 z-50">
@@ -14,6 +17,7 @@
             <a class="text-blue-700 font-bold text-2xl" href="#/">Segarikan</a>
           </div>
           
+          
           <!-- Desktop Navigation -->
           <nav class="hidden md:flex items-center space-x-8">
             <a href="#/" class="text-gray-700 hover:text-blue-500 px-3 py-2 text-sm font-medium transition-colors border-b-2 border-transparent hover:border-blue-500">Beranda</a>
@@ -21,6 +25,8 @@
             <a href="#/login" id="login-link" class="text-blue-700 hover:text-blue-500 px-3 py-2 text-sm font-medium transition-colors border-b-2 border-transparent hover:border-blue-500">Masuk</a>
             <a href="#/register" id="register-link" class="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition shadow-sm">Daftar</a>
             <div id="user-info-desktop" class="flex items-center gap-4"></div>
+            
+            
           </nav>
           
           
@@ -44,7 +50,8 @@
             <a href="#/register" id="register-link-mobile" class="block px-3 py-2 rounded-md text-base font-medium text-white bg-blue-600 hover:bg-blue-700 transition">Daftar</a>
             <div id="user-info-mobile" class="px-3 py-2 text-sm text-gray-700"></div>
           </div>
-        
+        <ul id="history-list"></ul>
+
       </div>
     </header>
 

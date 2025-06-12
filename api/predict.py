@@ -3,11 +3,11 @@ from . import api_bp
 from utils.image_processing import decode_base64_image, preprocess_image
 import numpy as np
 
-@class_names = ['Kurang Segar', 'Segar']
+class_names = ['Kurang Segar', 'Segar']
 
 @api_bp.route('/predict', methods=['POST'])
 def predict():
-    model = api_bp.model
+    model = getattr(api_bp, 'model', None)
     if model is None:
         return jsonify({"error": "Model belum dimuat"}), 500
     

@@ -1,4 +1,5 @@
 import { initDB, getUserByEmail } from '../../data/indexdb.js';
+import CONFIG from '../../config.js';
 
 export default class LoginPage {
   async render() {
@@ -41,20 +42,19 @@ export default class LoginPage {
       </section>
 
       <!-- Modal Notifikasi -->
-    <div id="notification-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
-      <div class="bg-white rounded-lg shadow-lg max-w-sm w-full p-6 text-center relative">
-        <button id="modal-close-btn" class="absolute top-3 right-3 text-gray-500 hover:text-gray-700 text-xl font-bold">&times;</button>
-        <p id="modal-message" class="text-gray-800 text-lg"></p>
-        <button id="modal-ok-btn" class="mt-6 bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition">OK</button>
+      <div id="notification-modal" class="fixed inset-0 bg-black bg-opacity-50 items-center justify-center hidden z-50">
+        <div class="bg-white rounded-lg shadow-lg max-w-sm w-full p-6 text-center relative">
+          <button id="modal-close-btn" class="absolute top-3 right-3 text-gray-500 hover:text-gray-700 text-xl font-bold">&times;</button>
+          <p id="modal-message" class="text-gray-800 text-lg"></p>
+          <button id="modal-ok-btn" class="mt-6 bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition">OK</button>
+        </div>
       </div>
-    </div>
     `;
   }
 
   async afterRender() {
     await initDB();
 
-    // Modal Elements
     const modal = document.getElementById('notification-modal');
     const modalMessage = document.getElementById('modal-message');
     const modalCloseBtn = document.getElementById('modal-close-btn');
@@ -63,20 +63,20 @@ export default class LoginPage {
     function showModal(message) {
       modalMessage.textContent = message;
       modal.classList.remove('hidden');
+      modal.classList.add('flex'); // tambahkan flex saat modal ditampilkan
     }
 
     function hideModal() {
       modal.classList.add('hidden');
+      modal.classList.remove('flex'); // hilangkan flex saat modal disembunyikan
     }
 
     modalCloseBtn.addEventListener('click', hideModal);
     modalOkBtn.addEventListener('click', () => {
       hideModal();
-      // Setelah user tutup modal, redirect ke homepage
       window.location.hash = '/';
     });
 
-    // Toggle Password Visibility
     const togglePasswordBtn = document.getElementById('toggle-password');
     const passwordInput = document.getElementById('password');
     const eyeIcon = document.getElementById('eye-icon');
@@ -84,7 +84,6 @@ export default class LoginPage {
 
     togglePasswordBtn.addEventListener('click', () => {
       const isPassword = passwordInput.type === 'password';
-
       if (isPassword) {
         passwordInput.type = 'text';
         eyeIcon.style.display = 'none';
@@ -99,7 +98,6 @@ export default class LoginPage {
     const form = document.querySelector('#login-form');
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
-
       const email = form.email.value.trim();
       const password = form.password.value.trim();
 
@@ -109,20 +107,34 @@ export default class LoginPage {
       }
 
       try {
-        const user = await getUserByEmail(email);
+        const response = await fetch(`${CONFIG.BASE_URL}/v1/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ email, password })
+        });
 
-        if (!user) {
-          alert('Email tidak terdaftar!');
+        const result = await response.json();
+        console.log('Response login:', result);
+
+        if (!response.ok || result.error) {
+          alert(result.message || 'Login gagal');
           return;
         }
 
-        if (user.password !== password) {
-          alert('Kata sandi salah!');
+        // Ambil token dan data user dari response
+        const token = result.token || (result.data && result.data.token) || (result.loginResult && result.loginResult.token);
+        const name = result.name || (result.data && result.data.name) || (result.loginResult && result.loginResult.name);
+        const userId = result.userId || (result.data && result.data.userId) || (result.loginResult && result.loginResult.userId);
+
+        if (!token) {
+          alert('Token tidak ditemukan pada response login.');
           return;
         }
 
-        // Simpan data user ke localStorage untuk sesi login
-        localStorage.setItem('loggedInUser', JSON.stringify(user));
+        localStorage.setItem('token', token);
+        localStorage.setItem('loggedInUser', JSON.stringify({ name, userId }));
 
         showModal('Login berhasil!');
       } catch (error) {

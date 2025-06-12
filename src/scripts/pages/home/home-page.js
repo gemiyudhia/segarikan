@@ -1,9 +1,18 @@
 import { initDB, getAllHistoryFromDB } from '../../data/indexdb.js';
+import Chart from 'chart.js/auto';
 
 export default class HomePage {
+  constructor() {
+    this.chartInstanceML = null;    // chart ML
+    this.chartInstanceActual = null; // chart Aktual
+    this.scanBtn = null;
+    this.modalCloseBtn = null;
+    this.modalOkBtn = null;
+  }
+
   async render() {
     return `
-<section class="relative px-4 py-20 bg-gradient-to-b from-blue-50 to-white min-h-[90vh] flex items-center justify-center overflow-hidden">
+<section class="relative px-4 py-20 bg-gradient-to-b from-blue-50 to-white min-h-[90vh] flex flex-col items-center overflow-hidden">
   <div class="container mx-auto max-w-6xl relative mt-20">
     <div class="flex flex-col md:flex-row items-center gap-12">
       <!-- Konten Kiri -->
@@ -15,58 +24,24 @@ export default class HomePage {
           Sistem berbasis web untuk mendeteksi kesegaran ikan secara cepat dan akurat menggunakan teknologi AI canggih. Dapatkan hasil dalam hitungan detik.
         </p>
 
-        <div class="flex flex-col sm:flex-row gap-4">
+        <div class="flex flex-col sm:flex-row gap-4 mb-12">
           <button id="scan-btn" class="inline-block bg-blue-600 text-white px-8 py-4 rounded-lg hover:bg-blue-700 transition transform hover:-translate-y-1 shadow-lg text-lg font-medium">
             Scan Kesegaran Ikan
           </button>
-        
+        </div>
+
+        <div class="mt-12">
+          <h3 class="text-2xl font-bold text-gray-800 mb-4 text-center">Distribusi Kesegaran (Machine Learning)</h3>
+          <canvas id="historyChartML" class="max-w-xl mx-auto mb-8"></canvas>
+
+          <h3 class="text-2xl font-bold text-gray-800 mb-4 text-center">Distribusi Kesegaran (Aktual)</h3>
+          <canvas id="historyChartActual" class="max-w-xl mx-auto"></canvas>
         </div>
       </div>
 
       <!-- Konten Kanan: Gambar -->
       <div class="md:w-1/2 hidden md:block">
         <img src="./images/fish.png" alt="Ilustrasi Ikan Segar" class="max-w-full h-auto" />
-      </div>
-    </div>
-
-<!-- Features Section -->
-<section class="px-4 py-16 bg-white">
-  <div class="container mx-auto max-w-6xl">
-    <div class="text-center mb-12">
-      <span class="inline-block px-3 py-1 rounded-full bg-blue-100 text-blue-700 font-medium text-sm mb-3">FITUR UNGGULAN</span>
-      <h2 class="text-3xl md:text-4xl font-bold text-gray-800 mb-4">Kenapa Memilih Segarikan?</h2>
-      <p class="text-gray-600 max-w-2xl mx-auto">Segarikan menggunakan teknologi terdepan untuk memastikan Anda mendapatkan hasil yang akurat dan cepat.</p>
-    </div>
-    <div class="grid md:grid-cols-3 gap-8">
-      <!-- Feature 1 -->
-      <div class="bg-white rounded-xl shadow-lg hover:shadow-xl p-8 border-t-4 border-blue-600 group hover:-translate-y-2 transform transition duration-300">
-        <div class="w-14 h-14 bg-blue-100 rounded-lg flex items-center justify-center mb-6 group-hover:bg-blue-600 transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-blue-600 group-hover:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </div>
-        <h3 class="text-xl font-bold text-blue-700 mb-3">Akurasi Tinggi</h3>
-        <p class="text-gray-600">Model AI kami dilatih dengan ribuan sampel ikan untuk mengenali kesegaran dengan akurasi hingga 98.5%.</p>
-      </div>
-      <!-- Feature 2 -->
-      <div class="bg-white rounded-xl shadow-lg hover:shadow-xl p-8 border-t-4 border-blue-600 group hover:-translate-y-2 transform transition duration-300">
-        <div class="w-14 h-14 bg-blue-100 rounded-lg flex items-center justify-center mb-6 group-hover:bg-blue-600 transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-blue-600 group-hover:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-          </svg>
-        </div>
-        <h3 class="text-xl font-bold text-blue-700 mb-3">Mudah Digunakan</h3>
-        <p class="text-gray-600">Unggah gambar ikan atau ambil foto langsung, dan hasilnya akan langsung muncul.</p>
-      </div>
-      <!-- Feature 3 -->
-      <div class="bg-white rounded-xl shadow-lg hover:shadow-xl p-8 border-t-4 border-blue-600 group hover:-translate-y-2 transform transition duration-300">
-        <div class="w-14 h-14 bg-blue-100 rounded-lg flex items-center justify-center mb-6 group-hover:bg-blue-600 transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-blue-600 group-hover:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
-          </svg>
-        </div>
-        <h3 class="text-xl font-bold text-blue-700 mb-3">Ramah Lingkungan</h3>
-        <p class="text-gray-600">Bantu mengurangi pemborosan makanan dengan keputusan konsumsi ikan yang lebih baik.</p>
       </div>
     </div>
   </div>
@@ -81,7 +56,6 @@ export default class HomePage {
       <p class="text-gray-600 max-w-2xl mx-auto">Proses sederhana dan cepat untuk mengetahui kesegaran ikan Anda.</p>
     </div>
     <div class="grid md:grid-cols-3 gap-8">
-      <!-- Langkah 1 -->
       <div class="relative">
         <div class="bg-white rounded-xl shadow-md p-8 relative z-10">
           <div class="w-12 h-12 bg-blue-600 rounded-full text-white font-bold flex items-center justify-center mb-6">1</div>
@@ -89,7 +63,6 @@ export default class HomePage {
           <p class="text-gray-600">Ambil foto ikan atau unggah gambar dari galeri Anda.</p>
         </div>
       </div>
-      <!-- Langkah 2 -->
       <div class="relative">
         <div class="bg-white rounded-xl shadow-md p-8 relative z-10">
           <div class="w-12 h-12 bg-blue-600 rounded-full text-white font-bold flex items-center justify-center mb-6">2</div>
@@ -97,7 +70,6 @@ export default class HomePage {
           <p class="text-gray-600">Sistem akan menganalisis gambar untuk menentukan tingkat kesegaran.</p>
         </div>
       </div>
-      <!-- Langkah 3 -->
       <div class="relative">
         <div class="bg-white rounded-xl shadow-md p-8 relative z-10">
           <div class="w-12 h-12 bg-blue-600 rounded-full text-white font-bold flex items-center justify-center mb-6">3</div>
@@ -109,11 +81,10 @@ export default class HomePage {
   </div>
 </section>
 
-
 <!-- Modal Notifikasi -->
 <div id="notification-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
   <div class="bg-white rounded-lg shadow-lg max-w-sm w-full p-6 text-center relative">
-    <button id="modal-close-btn" class="absolute top-3 right-3 text-gray-500 hover:text-gray-700 text-xl font-bold">&times;</button>
+    <button id="modal-close-btn" class="absolute top-3 right-3 text-gray-500 hover:text-gray-700 text-xl font-bold" aria-label="Close Modal">&times;</button>
     <p id="modal-message" class="text-gray-800 text-lg"></p>
     <button id="modal-ok-btn" class="mt-6 bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition">OK</button>
   </div>
@@ -122,77 +93,215 @@ export default class HomePage {
   }
 
   async afterRender() {
-    // Tombol Scan
-    const scanBtn = document.getElementById('scan-btn');
+    this.scanBtn = document.getElementById('scan-btn');
+    this.modalCloseBtn = document.getElementById('modal-close-btn');
+    this.modalOkBtn = document.getElementById('modal-ok-btn');
 
-    // Modal Elements
-    const modal = document.getElementById('notification-modal');
-    const modalMessage = document.getElementById('modal-message');
-    const modalCloseBtn = document.getElementById('modal-close-btn');
-    const modalOkBtn = document.getElementById('modal-ok-btn');
+    this.modalCloseBtn?.addEventListener('click', () => this.hideModal());
+    this.modalOkBtn?.addEventListener('click', () => this.hideModal());
 
-    // Fungsi untuk tampilkan modal dengan pesan
-    function showModal(message) {
-      modalMessage.textContent = message;
-      modal.classList.remove('hidden');
-    }
-
-    // Fungsi untuk sembunyikan modal
-    function hideModal() {
-      modal.classList.add('hidden');
-    }
-
-    // Event tombol tutup modal
-    modalCloseBtn.addEventListener('click', hideModal);
-    modalOkBtn.addEventListener('click', hideModal);
-
-    // Event listener untuk tombol scan
-    scanBtn.addEventListener('click', () => {
-      const loggedInUser = localStorage.getItem('loggedInUser');
-      if (!loggedInUser) {
-        showModal(
-          'Silakan login terlebih dahulu untuk menggunakan fitur scan.'
-        );
+    this.scanBtn?.addEventListener('click', () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        this.showModal('Silakan login terlebih dahulu untuk menggunakan fitur scan.');
       } else {
         window.location.href = '#/scan';
       }
     });
 
-    // Load quick stats
-    await this.loadQuickStats();
+    await initDB();
+    await this.loadChartData();
   }
 
-  async loadQuickStats() {
+  async loadChartData() {
     try {
-      await initDB();
-      const historyList = await getAllHistoryFromDB();
+      const localHistory = await getAllHistoryFromDB();
+      console.log('Riwayat dari IndexedDB:', localHistory);
 
-      if (historyList && historyList.length > 0) {
-        const totalScans = historyList.length;
-        let freshCount = 0;
-        let notFreshCount = 0;
+      let freshCountML = 0;
+      let notFreshCountML = 0;
+      let freshCountActual = 0;
+      let notFreshCountActual = 0;
 
-        historyList.forEach((item) => {
-          const result = item.result?.[0] || {};
-          const freshness = result.freshness || '';
+      const regexFresh = /\b(segar|fresh|baik|bagus|fresh sekali)\b/i;
 
-          if (
-            freshness.toLowerCase().includes('segar') ||
-            freshness.toLowerCase().includes('fresh')
-          ) {
-            freshCount++;
-          } else {
-            notFreshCount++;
-          }
-        });
+      for (const item of localHistory) {
+        // --- Machine Learning result ---
+        let freshnessML = 
+          typeof item.freshness === 'string' && item.freshness.trim() !== '' ? item.freshness.toLowerCase().trim() :
+          typeof item.result === 'string' && item.result.trim() !== '' ? item.result.toLowerCase().trim() :
+          typeof item.freshness === 'boolean' ? (item.freshness ? 'fresh' : 'not fresh') :
+          '';
 
-        document.getElementById('home-total-scans').textContent = totalScans;
-        document.getElementById('home-fresh-count').textContent = freshCount;
-        document.getElementById('home-not-fresh-count').textContent =
-          notFreshCount;
+        regexFresh.lastIndex = 0; // reset regex state
+        const isFreshML = regexFresh.test(freshnessML);
+        if (isFreshML) freshCountML++;
+        else notFreshCountML++;
+
+        // --- Actual result ---
+        let freshnessActual =
+          typeof item.actualFreshness === 'string' && item.actualFreshness.trim() !== '' ? item.actualFreshness.toLowerCase().trim() :
+          typeof item.actual === 'string' && item.actual.trim() !== '' ? item.actual.toLowerCase().trim() :
+          typeof item.actualFreshness === 'boolean' ? (item.actualFreshness ? 'fresh' : 'not fresh') :
+          '';
+
+        regexFresh.lastIndex = 0;
+        const isFreshActual = regexFresh.test(freshnessActual);
+        if (isFreshActual) freshCountActual++;
+        else notFreshCountActual++;
       }
+
+      const totalML = freshCountML + notFreshCountML;
+      const totalActual = freshCountActual + notFreshCountActual;
+
+      const freshPercentML = totalML > 0 ? (freshCountML / totalML) * 100 : 0;
+      const notFreshPercentML = totalML > 0 ? (notFreshCountML / totalML) * 100 : 0;
+
+      const freshPercentActual = totalActual > 0 ? (freshCountActual / totalActual) * 100 : 0;
+      const notFreshPercentActual = totalActual > 0 ? (notFreshCountActual / totalActual) * 100 : 0;
+
+      this.renderChartML({
+        fresh: freshPercentML,
+        notFresh: notFreshPercentML,
+      });
+
+      this.renderChartActual({
+        fresh: freshPercentActual,
+        notFresh: notFreshPercentActual,
+      });
+
     } catch (error) {
-      alert('Error loading quick stats:', error);
+      console.error('Error loadChartData:', error);
     }
+  }
+
+  renderChartML(data) {
+    const ctxML = document.getElementById('historyChartML')?.getContext('2d');
+    if (!ctxML) return;
+
+    this.chartInstanceML?.destroy();
+
+    this.chartInstanceML = new Chart(ctxML, {
+      type: 'doughnut',
+      data: {
+        labels: ['Segar', 'Tidak Segar'],
+        datasets: [{
+          data: [data.fresh, data.notFresh],
+          backgroundColor: ['#22c55e', '#ef4444'], // Hijau dan Merah
+          hoverBackgroundColor: ['#16a34a', '#b91c1c'],
+          borderWidth: 0,
+        }],
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { font: { size: 14 } }
+          },
+          tooltip: {
+            callbacks: {
+              label: ctx => `${ctx.label}: ${ctx.parsed.toFixed(2)}%`,
+            },
+          },
+        },
+        cutout: '60%',
+      },
+    });
+  }
+
+ renderChartActual(data) {
+  const ctxActual = document.getElementById('historyChartActual')?.getContext('2d');
+  if (!ctxActual) return;
+
+  this.chartInstanceActual?.destroy();
+
+  this.chartInstanceActual = new Chart(ctxActual, {
+    type: 'bar',
+    data: {
+      labels: ['Segar', 'Tidak Segar'],
+      datasets: [{
+        label: 'Persentase Kesegaran Aktual',
+        data: [data.fresh, data.notFresh],
+        backgroundColor: ['#3b82f6', '#ef4444'], // Biru cerah dan Merah
+        borderRadius: 10,
+        borderSkipped: false,
+      }],
+    },
+    options: {
+      responsive: true,
+      animation: {
+        duration: 1000,
+        easing: 'easeOutQuart',
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 100,
+          ticks: {
+            callback: value => value + '%',
+            font: { size: 14, weight: 'bold' },
+            color: '#334155',
+          },
+          grid: {
+            color: '#e2e8f0',
+          },
+          title: {
+            display: true,
+            text: 'Persentase (%)',
+            color: '#334155',
+            font: { size: 16, weight: 'bold' },
+          }
+        },
+        x: {
+          ticks: {
+            font: { size: 14, weight: 'bold' },
+            color: '#334155',
+          },
+          grid: {
+            display: false,
+          },
+        }
+      },
+      plugins: {
+        legend: {
+          display: false,
+        },
+        tooltip: {
+          enabled: true,
+          backgroundColor: '#2563eb',
+          titleColor: '#fff',
+          bodyColor: '#fff',
+          callbacks: {
+            label: ctx => `${ctx.parsed.y.toFixed(2)}%`,
+          },
+        },
+        title: {
+          display: true,
+          text: 'Distribusi Kesegaran Aktual (Bar Chart)',
+          font: { size: 18, weight: 'bold' },
+          color: '#1e40af',
+          padding: { bottom: 20 },
+        },
+      },
+      cornerRadius: 10,
+    },
+  });
+}
+
+
+  showModal(message) {
+    const modal = document.getElementById('notification-modal');
+    const msgElem = document.getElementById('modal-message');
+
+    if (modal && msgElem) {
+      msgElem.textContent = message;
+      modal.classList.remove('hidden');
+    }
+  }
+
+  hideModal() {
+    const modal = document.getElementById('notification-modal');
+    if (modal) modal.classList.add('hidden');
   }
 }
