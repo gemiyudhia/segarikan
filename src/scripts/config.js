@@ -1,5 +1,5 @@
 const CONFIG = {
-  BASE_URL: 'https://api-segarikan-production.up.railway.app',
+  BASE_URL: 'api-segarikan-production-111b.up.railway.app',
 };
 
 export default CONFIG;
